@@ -6,6 +6,15 @@ Start Buildbox builds using git with a clickable link:
 
 Walks you through first time configuration.
 
+## Installation
+
+For now, I've created a homebrew tap and recipe:
+
+```
+brew tap sj26/git-buildbox
+brew install git-buildbox
+```
+
 ## To Do
 
  * Parameterize branch and commit
