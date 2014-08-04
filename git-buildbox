@@ -1,0 +1,265 @@
+#!/bin/bash
+
+BUILDBOX_API_KEY="${BUILDBOX_API_KEY:-$(git config buildbox.apikey)}"
+BUILDBOX_ACCOUNT="${BUILDBOX_ACCOUNT:-$(git config buildbox.account)}"
+BUILDBOX_PROJECT="${BUILDBOX_PROJECT:-$(git config buildbox.project)}"
+
+function current_revision() {
+  git rev-parse HEAD
+}
+
+function current_branch() {
+  git symbolic-ref --short HEAD 2> /dev/null
+}
+
+function current_branch_exists() {
+  [ "$(current_branch)" ]
+}
+
+function remote_upstream_branch() {
+  git rev-parse --symbolic-full-name --abbrev-ref @{u} 2> /dev/null
+}
+
+function upstream_branch() {
+  remote_and_branch=$(remote_upstream_branch)
+  branch="${remote_and_branch#*/}"
+  echo "$branch"
+}
+
+function upstream_branch_exists() {
+  [ "$(upstream_branch)" ]
+}
+
+function remote_current_branch() {
+  [ "$(current_branch)" ] && echo "origin/$(current_branch)"
+}
+
+function remote_current_branch_revision() {
+  [ "$(remote_current_branch)" ] &&
+    git rev-parse --short "$(remote_current_branch)"
+}
+
+function remote_current_branch_current() {
+  [ "$(remote_current_branch)" ] &&
+    git rev-parse --verify --quiet "$(remote_current_branch)" > /dev/null &&
+    [ "$(git rev-parse "$(current_branch)")" == "$(git rev-parse "$(remote_current_branch)")" ]
+}
+
+function remote_current_branch_behind() {
+  [ "$(remote_current_branch)" ] &&
+    git rev-parse --verify --quiet "$(remote_current_branch)" > /dev/null &&
+    git merge-base --is-ancestor "$(remote_current_branch)" "$(current_branch)"
+}
+
+function confirm() {
+  read -p "$1 " -n 1 -r
+  echo
+  [[ "$REPLY" =~ ^[Yy]$ ]]
+}
+
+function current_head_on_remote() {
+  [ -z "$(git rev-list $1..$(current_revision))" ]
+}
+
+function current_head_dirty() {
+  [ "$(git status --short)" ]
+}
+
+function build() {
+  # XXX: There seems no nice way to make curl give us a non-zero
+  # status code and the response body on error, so we have to check
+  # the content for errors later.
+  curl -# "https://api.buildbox.io/v1/projects/${BUILDBOX_ACCOUNT}/${BUILDBOX_PROJECT}/builds" \
+    -X POST \
+    -F "api_key=$BUILDBOX_API_KEY" \
+    -F "branch=$1" \
+    -F "commit=$2" \
+    -F "message=Personal build for $(git config user.name)" \
+    -F "force=true" \
+    -F "meta_data[personal]=true" \
+    -F "meta_data[user_name]=$(git config user.name)" \
+    -F "meta_data[user_email]=$(git config user.email)"
+}
+
+function result_error() {
+  [[ -z "$(result_build_number "$1")" ]]
+}
+
+function result_api_key_error() {
+  grep -q api_key <<< "$1"
+}
+
+function result_build_number() {
+  ruby -rjson -e 'print JSON.parse(STDIN.read)["number"].to_s rescue ""' <<< "$1"
+}
+
+if [ -z "$BUILDBOX_API_KEY" ]; then
+  echo "You need to configure your Buildbox api key. It's on:"
+  echo
+  echo "    https://buildbox.io/user/settings"
+  echo
+  echo "Then stick it in git:"
+  echo
+  echo "    git config --global buildbox.apikey <KEY>"
+  echo
+
+  exit 1
+fi
+
+if [ -z "$BUILDBOX_ACCOUNT" -o -z "$BUILDBOX_PROJECT" ]; then
+  echo "You need to configure your Buildbox account and project name. They're in the URL when you visit your project page. For example:"
+  echo
+  echo "    https://buildbox.io/mycompany/myproject"
+  echo
+  echo "corresponds an account named \"mycompany\" and project named \"myproject\". Then stick it in git:"
+  echo
+  echo "    git config --local buildbox.account \"mycompany\""
+  echo "    git config --local buildbox.project \"myproject\""
+  echo
+
+  exit 1
+fi
+
+if ! current_branch_exists; then
+  echo "Woops, you don't seem to be on a branch." >&2
+  echo
+  echo "Try:"
+  echo
+  echo "    git checkout -b my_branch HEAD"
+  echo
+  echo "And make sure you push it first:"
+  echo
+  echo "    git push --set-upstream origin my_branch"
+  echo
+
+  exit 1
+fi
+
+if upstream_branch_exists; then
+  echo "$(current_branch) exists on origin as $(upstream_branch)"
+  echo
+
+  BUILDBOX_BRANCH="$(upstream_branch)"
+else
+  if remote_current_branch_current; then
+    echo "$(current_branch) also exists on origin at the same commit, I'll assume that's what we're building."
+    echo
+
+    BUILDBOX_BRANCH="$(current_branch)"
+  elif remote_current_branch_behind; then
+    echo "$(current_branch) also exists on origin, but it's at an earlier commit:"
+    echo
+    echo "    $(git show --oneline --no-patch $(remote_current_branch_revision))"
+    echo
+    echo "This will only work if the commit is in another ref on origin."
+    echo
+
+    if confirm "Do you want to try anyway?"; then
+      echo
+      echo "Yeah, I trust you."
+      echo
+
+      BUILDBOX_BRANCH="$(current_branch)"
+    else
+      echo
+      echo "Cautious player, I like that."
+      echo
+      echo "Try pushing your branch first:"
+      echo
+      echo "    git push origin $(current_branch)"
+      echo
+      exit 1
+    fi
+  else
+    echo "Woops, I can't figure out what this branch is called on origin."
+    echo
+    echo "Have you pushed it? Try:"
+    echo
+    echo "    git push --set-upstream origin $(current_branch)"
+    echo
+    echo "Otherwise maybe you just need to set the upstream for this branch:"
+    echo
+    echo "    git branch --set-upstream-to origin/$(current_branch)"
+    echo
+
+    exit 1
+  fi
+fi
+
+if ! current_head_on_remote $BUILDBOX_BRANCH; then
+  echo "Woops, I can't see this commit on origin."
+  echo
+  echo "Have you pushed it? Try:"
+  echo
+  echo "    git push origin $(current_branch)"
+  echo
+
+  if confirm "Do you want to try anyway?"; then
+    echo
+    echo "Yeah, let's do this."
+    echo
+  else
+    echo
+    echo "Okay, let me know when you're ready!"
+    echo
+    exit 1
+  fi
+fi
+
+if current_head_dirty; then
+  echo "Woops, it looks like your working tree is dirty:"
+  echo
+  git status
+  echo
+  echo "If you want to build with these changes you should commit and push them first."
+  echo
+
+  if confirm "Do you want to try anyway?"; then
+    echo
+    echo "Yeah, let's do this."
+    echo
+  else
+    echo
+    echo "Okay, let me know when you're ready!"
+    echo
+    exit 1
+  fi
+fi
+
+echo "Starting a personal build for $(current_branch) at $(current_revision)"
+
+result="$(build $BUILDBOX_BRANCH "$(current_revision)")"
+
+if result_error "$result"; then
+  echo
+  echo "Woops, Buildbox didn't like that:"
+  echo
+  echo "$result"
+  echo
+
+  if result_api_key_error "$result"; then
+    echo "Sounds like it might be your API key Check it out:"
+    echo
+    echo "    https://buildbox.io/user/settings"
+    echo
+    echo "Here's what we've got:"
+    echo
+    echo "    $BUILDBOX_API_KEY"
+    echo
+    echo "Change it with:"
+    echo
+    echo "    git config --global buildbox.apikey <KEY>"
+    echo
+  fi
+
+  exit 1
+fi
+
+build_number="$(result_build_number "$result")"
+
+echo
+echo "Success! Watch it go:"
+echo
+echo "    https://buildbox.io/${BUILDBOX_ACCOUNT}/${BUILDBOX_PROJECT}/builds/${build_number}"
+echo
+
