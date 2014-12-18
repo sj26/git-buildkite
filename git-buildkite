@@ -1,8 +1,8 @@
 #!/bin/bash
 
-BUILDBOX_API_KEY="${BUILDBOX_API_KEY:-$(git config buildbox.apikey)}"
-BUILDBOX_ACCOUNT="${BUILDBOX_ACCOUNT:-$(git config buildbox.account)}"
-BUILDBOX_PROJECT="${BUILDBOX_PROJECT:-$(git config buildbox.project)}"
+BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
+BUILDKITE_ACCOUNT="${BUILDKITE_ACCOUNT:-$(git config buildkite.account)}"
+BUILDKITE_PROJECT="${BUILDKITE_PROJECT:-$(git config buildkite.project)}"
 
 function current_revision() {
   git rev-parse HEAD
@@ -69,9 +69,9 @@ function build() {
   # XXX: There seems no nice way to make curl give us a non-zero
   # status code and the response body on error, so we have to check
   # the content for errors later.
-  curl -# "https://api.buildbox.io/v1/projects/${BUILDBOX_ACCOUNT}/${BUILDBOX_PROJECT}/builds" \
+  curl -# "https://api.buildkite.io/v1/projects/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds" \
     -X POST \
-    -F "api_key=$BUILDBOX_API_KEY" \
+    -F "api_key=$BUILDKITE_API_KEY" \
     -F "branch=$1" \
     -F "commit=$2" \
     -F "message=Personal build for $(git config user.name)" \
@@ -93,28 +93,28 @@ function result_build_number() {
   ruby -rjson -e 'print JSON.parse(STDIN.read)["number"].to_s rescue ""' <<< "$1"
 }
 
-if [ -z "$BUILDBOX_API_KEY" ]; then
-  echo "You need to configure your Buildbox api key. It's on:"
+if [ -z "$BUILDKITE_API_KEY" ]; then
+  echo "You need to configure your Buildkite api key. It's on:"
   echo
-  echo "    https://buildbox.io/user/settings"
+  echo "    https://buildkite.io/user/settings"
   echo
   echo "Then stick it in git:"
   echo
-  echo "    git config --global buildbox.apikey <KEY>"
+  echo "    git config --global buildkite.apikey <KEY>"
   echo
 
   exit 1
 fi
 
-if [ -z "$BUILDBOX_ACCOUNT" -o -z "$BUILDBOX_PROJECT" ]; then
-  echo "You need to configure your Buildbox account and project name. They're in the URL when you visit your project page. For example:"
+if [ -z "$BUILDKITE_ACCOUNT" -o -z "$BUILDKITE_PROJECT" ]; then
+  echo "You need to configure your Buildkite account and project name. They're in the URL when you visit your project page. For example:"
   echo
-  echo "    https://buildbox.io/mycompany/myproject"
+  echo "    https://buildkite.io/mycompany/myproject"
   echo
   echo "corresponds an account named \"mycompany\" and project named \"myproject\". Then stick it in git:"
   echo
-  echo "    git config --local buildbox.account \"mycompany\""
-  echo "    git config --local buildbox.project \"myproject\""
+  echo "    git config --local buildkite.account \"mycompany\""
+  echo "    git config --local buildkite.project \"myproject\""
   echo
 
   exit 1
@@ -139,13 +139,13 @@ if upstream_branch_exists; then
   echo "$(current_branch) exists on origin as $(upstream_branch)"
   echo
 
-  BUILDBOX_BRANCH="$(upstream_branch)"
+  BUILDKITE_BRANCH="$(upstream_branch)"
 else
   if remote_current_branch_current; then
     echo "$(current_branch) also exists on origin at the same commit, I'll assume that's what we're building."
     echo
 
-    BUILDBOX_BRANCH="$(current_branch)"
+    BUILDKITE_BRANCH="$(current_branch)"
   elif remote_current_branch_behind; then
     echo "$(current_branch) also exists on origin, but it's at an earlier commit:"
     echo
@@ -159,7 +159,7 @@ else
       echo "Yeah, I trust you."
       echo
 
-      BUILDBOX_BRANCH="$(current_branch)"
+      BUILDKITE_BRANCH="$(current_branch)"
     else
       echo
       echo "Cautious player, I like that."
@@ -186,7 +186,7 @@ else
   fi
 fi
 
-if ! current_head_on_remote $BUILDBOX_BRANCH; then
+if ! current_head_on_remote $BUILDKITE_BRANCH; then
   echo "Woops, I can't see this commit on origin."
   echo
   echo "Have you pushed it? Try:"
@@ -228,11 +228,11 @@ fi
 
 echo "Starting a personal build for $(current_branch) at $(current_revision)"
 
-result="$(build $BUILDBOX_BRANCH "$(current_revision)")"
+result="$(build $BUILDKITE_BRANCH "$(current_revision)")"
 
 if result_error "$result"; then
   echo
-  echo "Woops, Buildbox didn't like that:"
+  echo "Woops, Buildkite didn't like that:"
   echo
   echo "$result"
   echo
@@ -240,15 +240,15 @@ if result_error "$result"; then
   if result_api_key_error "$result"; then
     echo "Sounds like it might be your API key Check it out:"
     echo
-    echo "    https://buildbox.io/user/settings"
+    echo "    https://buildkite.io/user/settings"
     echo
     echo "Here's what we've got:"
     echo
-    echo "    $BUILDBOX_API_KEY"
+    echo "    $BUILDKITE_API_KEY"
     echo
     echo "Change it with:"
     echo
-    echo "    git config --global buildbox.apikey <KEY>"
+    echo "    git config --global buildkite.apikey <KEY>"
     echo
   fi
 
@@ -260,6 +260,6 @@ build_number="$(result_build_number "$result")"
 echo
 echo "Success! Watch it go:"
 echo
-echo "    https://buildbox.io/${BUILDBOX_ACCOUNT}/${BUILDBOX_PROJECT}/builds/${build_number}"
+echo "    https://buildkite.io/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds/${build_number}"
 echo
 
