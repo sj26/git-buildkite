@@ -69,7 +69,7 @@ function build() {
   # XXX: There seems no nice way to make curl give us a non-zero
   # status code and the response body on error, so we have to check
   # the content for errors later.
-  curl -# "https://api.buildkite.io/v1/projects/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds" \
+  curl -# "https://api.buildkite.com/v1/projects/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds" \
     -X POST \
     -F "api_key=$BUILDKITE_API_KEY" \
     -F "branch=$1" \
@@ -96,7 +96,7 @@ function result_build_number() {
 if [ -z "$BUILDKITE_API_KEY" ]; then
   echo "You need to configure your Buildkite api key. It's on:"
   echo
-  echo "    https://buildkite.io/user/settings"
+  echo "    https://buildkite.com/user/settings"
   echo
   echo "Then stick it in git:"
   echo
@@ -109,7 +109,7 @@ fi
 if [ -z "$BUILDKITE_ACCOUNT" -o -z "$BUILDKITE_PROJECT" ]; then
   echo "You need to configure your Buildkite account and project name. They're in the URL when you visit your project page. For example:"
   echo
-  echo "    https://buildkite.io/mycompany/myproject"
+  echo "    https://buildkite.com/mycompany/myproject"
   echo
   echo "corresponds an account named \"mycompany\" and project named \"myproject\". Then stick it in git:"
   echo
@@ -240,7 +240,7 @@ if result_error "$result"; then
   if result_api_key_error "$result"; then
     echo "Sounds like it might be your API key Check it out:"
     echo
-    echo "    https://buildkite.io/user/settings"
+    echo "    https://buildkite.com/user/settings"
     echo
     echo "Here's what we've got:"
     echo
@@ -260,6 +260,6 @@ build_number="$(result_build_number "$result")"
 echo
 echo "Success! Watch it go:"
 echo
-echo "    https://buildkite.io/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds/${build_number}"
+echo "    https://buildkite.com/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds/${build_number}"
 echo
 
