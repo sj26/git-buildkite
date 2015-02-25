@@ -96,7 +96,7 @@ function result_build_number() {
 if [ -z "$BUILDKITE_API_KEY" ]; then
   echo "You need to configure your Buildkite api key. It's on:"
   echo
-  echo "    https://buildkite.com/user/settings"
+  echo "    https://buildkite.com/user/api-access-tokens"
   echo
   echo "Then stick it in git:"
   echo
