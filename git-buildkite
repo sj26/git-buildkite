@@ -69,7 +69,8 @@ function build() {
   # XXX: There seems no nice way to make curl give us a non-zero
   # status code and the response body on error, so we have to check
   # the content for errors later.
-  curl -# "https://api.buildkite.com/v1/projects/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds?api_key=$BUILDKITE_API_KEY" \
+  curl -# "https://api.buildkite.com/v1/projects/${BUILDKITE_ACCOUNT}/${BUILDKITE_PROJECT}/builds" \
+    -H "Authorization: Bearer $BUILDKITE_API_KEY" \
     -X POST \
     -F "branch=$1" \
     -F "commit=$2" \
