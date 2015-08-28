@@ -94,7 +94,7 @@ function result_build_number() {
 }
 
 if [ -z "$BUILDKITE_API_KEY" ]; then
-  echo "You need to configure your Buildkite api key. It's on:"
+  echo "You need to create a new Buildkite api key with the 'Modify Builds (write_builds)' scope. You can do that here:"
   echo
   echo "    https://buildkite.com/user/api-access-tokens"
   echo
