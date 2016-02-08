@@ -240,7 +240,7 @@ if result_error "$result"; then
   if result_api_key_error "$result"; then
     echo "Sounds like it might be your API key Check it out:"
     echo
-    echo "    https://buildkite.com/user/settings"
+    echo "    https://buildkite.com/user/api-access-tokens"
     echo
     echo "Here's what we've got:"
     echo
