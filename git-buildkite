@@ -127,113 +127,137 @@ if [ -z "$BUILDKITE_ACCOUNT" -o -z "$BUILDKITE_PROJECT" ]; then
   exit 1
 fi
 
-if ! current_branch_exists; then
-  echo "Woops, you don't seem to be on a branch." >&2
-  echo
-  echo "Try:"
-  echo
-  echo "    git checkout -b my_branch HEAD"
-  echo
-  echo "And make sure you push it first:"
-  echo
-  echo "    git push --set-upstream origin my_branch"
-  echo
-
-  exit 1
-fi
-
-if upstream_branch_exists; then
-  echo "$(current_branch) exists on origin as $(upstream_branch)"
-  echo
-
-  BUILDKITE_BRANCH="$(upstream_branch)"
-else
-  if remote_current_branch_current; then
-    echo "$(current_branch) also exists on origin at the same commit, I'll assume that's what we're building."
+if [[ "$#" -eq 0 ]]; then
+  if ! current_branch_exists; then
+    echo "Woops, you don't seem to be on a branch." >&2
+    echo
+    echo "Try:"
+    echo
+    echo "    git checkout -b my_branch HEAD"
+    echo
+    echo "And make sure you push it first:"
+    echo
+    echo "    git push --set-upstream origin my_branch"
     echo
 
-    BUILDKITE_BRANCH="$(current_branch)"
-  elif remote_current_branch_behind; then
-    echo "$(current_branch) also exists on origin, but it's at an earlier commit:"
-    echo
-    echo "    $(git show --oneline --no-patch $(remote_current_branch_revision))"
-    echo
-    echo "This will only work if the commit is in another ref on origin."
+    exit 1
+  fi
+
+  if upstream_branch_exists; then
+    echo "$(current_branch) exists on origin as $(upstream_branch)"
     echo
 
-    if confirm "Do you want to try anyway?"; then
-      echo
-      echo "Yeah, I trust you."
+    BUILDKITE_BRANCH="$(upstream_branch)"
+  else
+    if remote_current_branch_current; then
+      echo "$(current_branch) also exists on origin at the same commit, I'll assume that's what we're building."
       echo
 
       BUILDKITE_BRANCH="$(current_branch)"
+    elif remote_current_branch_behind; then
+      echo "$(current_branch) also exists on origin, but it's at an earlier commit:"
+      echo
+      echo "    $(git show --oneline --no-patch $(remote_current_branch_revision))"
+      echo
+      echo "This will only work if the commit is in another ref on origin."
+      echo
+
+      if confirm "Do you want to try anyway?"; then
+        echo
+        echo "Yeah, I trust you."
+        echo
+
+        BUILDKITE_BRANCH="$(current_branch)"
+      else
+        echo
+        echo "Cautious player, I like that."
+        echo
+        echo "Try pushing your branch first:"
+        echo
+        echo "    git push origin $(current_branch)"
+        echo
+        exit 1
+      fi
     else
+      echo "Woops, I can't figure out what this branch is called on origin."
       echo
-      echo "Cautious player, I like that."
+      echo "Have you pushed it? Try:"
       echo
-      echo "Try pushing your branch first:"
+      echo "    git push --set-upstream origin $(current_branch)"
       echo
-      echo "    git push origin $(current_branch)"
+      echo "Otherwise maybe you just need to set the upstream for this branch:"
       echo
+      echo "    git branch --set-upstream-to origin/$(current_branch)"
+      echo
+
       exit 1
     fi
-  else
-    echo "Woops, I can't figure out what this branch is called on origin."
+  fi
+
+  if ! current_head_on_remote $BUILDKITE_BRANCH; then
+    echo "Woops, I can't see this commit on origin."
     echo
     echo "Have you pushed it? Try:"
     echo
     echo "    git push --set-upstream origin $(current_branch)"
     echo
-    echo "Otherwise maybe you just need to set the upstream for this branch:"
-    echo
-    echo "    git branch --set-upstream-to origin/$(current_branch)"
-    echo
 
-    exit 1
+    if confirm "Do you want to try anyway?"; then
+      echo
+      echo "Yeah, let's do this."
+      echo
+    else
+      echo
+      echo "Okay, let me know when you're ready!"
+      echo
+      exit 1
+    fi
   fi
-fi
 
-if ! current_head_on_remote $BUILDKITE_BRANCH; then
-  echo "Woops, I can't see this commit on origin."
-  echo
-  echo "Have you pushed it? Try:"
-  echo
-  echo "    git push --set-upstream origin $(current_branch)"
-  echo
+  if current_head_dirty; then
+    echo "Woops, it looks like your working tree is dirty:"
+    echo
+    git status
+    echo
+    echo "If you want to build with these changes you should commit and push them first."
+    echo
 
-  if confirm "Do you want to try anyway?"; then
-    echo
-    echo "Yeah, let's do this."
-    echo
+    if confirm "Do you want to try anyway?"; then
+      echo
+      echo "Yeah, let's do this."
+      echo
+    else
+      echo
+      echo "Okay, let me know when you're ready!"
+      echo
+      exit 1
+    fi
+  fi
+
+  BUILDKITE_COMMIT="$(current_revision)"
+
+elif [[ "$#" -eq 1 ]]; then
+  # git buildkite <branch>
+
+  BUILDKITE_BRANCH="$1"
+
+  BUILDKITE_COMMIT="$(git rev-parse "$BUILDKITE_BRANCH")" || ( echo "Woops, I can't figure out what commit to build from that branch"; exit 1 )
+
+elif [[ "$#" -eq 2 ]]; then
+  # git buildkite <branch> <commit>
+
+  if [[ "$1" == "HEAD" || "$1" == "@" ]]; then
+    # "@" or "HEAD" are aliases for building the current branch at a specified commit.
+    BUILDKITE_BRANCH="$(current_branch)"
   else
-    echo
-    echo "Okay, let me know when you're ready!"
-    echo
-    exit 1
+    BUILDKITE_BRANCH="$1"
   fi
+
+  # rev-parse the commit so we can do things like HEAD~2 or :/history
+  BUILDKITE_COMMIT="$(git rev-parse "$2")"
+else
+  echo "Usage: git buildkite [branch [commit]]"
 fi
-
-if current_head_dirty; then
-  echo "Woops, it looks like your working tree is dirty:"
-  echo
-  git status
-  echo
-  echo "If you want to build with these changes you should commit and push them first."
-  echo
-
-  if confirm "Do you want to try anyway?"; then
-    echo
-    echo "Yeah, let's do this."
-    echo
-  else
-    echo
-    echo "Okay, let me know when you're ready!"
-    echo
-    exit 1
-  fi
-fi
-
-BUILDKITE_COMMIT="$(current_revision)"
 
 echo "Starting a build for $BUILDKITE_BRANCH at $BUILDKITE_COMMIT"
 
