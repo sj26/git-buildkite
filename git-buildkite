@@ -74,7 +74,7 @@ function build() {
     -X POST \
     -F "branch=$1" \
     -F "commit=$2" \
-    -F "message=Personal build for $(git config user.name)" \
+    -F "message=$(git log --format=%B -n 1 "$2")" \
     -F "ignore_pipeline_branch_filters=true" \
     -F "meta_data[personal]=true" \
     -F "meta_data[user_name]=$(git config user.name)" \
