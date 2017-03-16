@@ -198,7 +198,7 @@ if ! current_head_on_remote $BUILDKITE_BRANCH; then
   echo
   echo "Have you pushed it? Try:"
   echo
-  echo "    git push origin $(current_branch)"
+  echo "    git push --set-upstream origin $(current_branch)"
   echo
 
   if confirm "Do you want to try anyway?"; then
@@ -233,9 +233,11 @@ if current_head_dirty; then
   fi
 fi
 
-echo "Starting a personal build for $(current_branch) at $(current_revision)"
+BUILDKITE_COMMIT="$(current_revision)"
 
-result="$(build $BUILDKITE_BRANCH "$(current_revision)")"
+echo "Starting a build for $BUILDKITE_BRANCH at $BUILDKITE_COMMIT"
+
+result="$(build "$BUILDKITE_BRANCH" "$BUILDKITE_COMMIT")"
 
 if result_error "$result"; then
   echo
