@@ -4,6 +4,13 @@ BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
 BUILDKITE_ACCOUNT="${BUILDKITE_ACCOUNT:-$(git config buildkite.account)}"
 BUILDKITE_PROJECT="${BUILDKITE_PROJECT:-$(git config buildkite.project)}"
 
+# Store your API key in your keyring:
+#   pip install keyring
+#   keyring set api.buildkite.com "$USER"
+if [[ -z "$BUILDKITE_API_KEY" ]] && which keyring > /dev/null 2>&1; then
+  BUILDKITE_API_KEY="$(keyring get api.buildkite.com "$USER")"
+fi
+
 function current_revision() {
   git rev-parse HEAD
 }
