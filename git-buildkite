@@ -16,7 +16,13 @@ function current_revision() {
 }
 
 function current_branch() {
-  git symbolic-ref --short HEAD 2> /dev/null
+  if [[ -f .git/rebase-merge/head-name ]]; then
+    # We're rebasing, use the rebased head's name (without refs/heads/ prefix)
+    echo "$(head="$(cat .git/rebase-merge/head-name)"; echo "${head#refs/heads/}")"
+  else
+    # Let git read the HEAD for a symbolic ref (the current branch)
+    git symbolic-ref --short HEAD 2> /dev/null
+  fi
 }
 
 function current_branch_exists() {
@@ -249,6 +255,21 @@ elif [[ "$#" -eq 2 ]]; then
   if [[ "$1" == "HEAD" || "$1" == "@" ]]; then
     # "@" or "HEAD" are aliases for building the current branch at a specified commit.
     BUILDKITE_BRANCH="$(current_branch)"
+
+    if ! current_branch_exists; then
+      echo "Woops, you don't seem to be on a branch." >&2
+      echo
+      echo "Try:"
+      echo
+      echo "    git checkout -b my_branch HEAD"
+      echo
+      echo "And make sure you push it first:"
+      echo
+      echo "    git push --set-upstream origin my_branch"
+      echo
+
+      exit 1
+    fi
   else
     BUILDKITE_BRANCH="$1"
   fi
