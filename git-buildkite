@@ -1,14 +1,50 @@
 #!/bin/bash
 
 BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
-BUILDKITE_ACCOUNT="${BUILDKITE_ACCOUNT:-$(git config buildkite.account)}"
-BUILDKITE_PROJECT="${BUILDKITE_PROJECT:-$(git config buildkite.project)}"
 
 # Store your API key in your keyring:
 #   pip install keyring
 #   keyring set api.buildkite.com "$USER"
 if [[ -z "$BUILDKITE_API_KEY" ]] && which keyring > /dev/null 2>&1; then
   BUILDKITE_API_KEY="$(keyring get api.buildkite.com "$USER")"
+fi
+
+BUILDKITE_ORGANIZATION="${BUILDKITE_ORGANIZATION:-$(git config buildkite.organization)}"
+
+if [[ -z "$BUILDKITE_ORGANIZATION" && -n "$BUILDKITE_ACCOUNT" ]]; then
+  BUILDKITE_ORGANIZATION="$BUILDKITE_ACCOUNT"
+
+  echo "Warning: \$BUILDKITE_ACCOUNT is deprecated, please use \$BUILDKITE_ORGANIZATION"
+  echo
+fi
+
+if [[ -z "$BUILDKITE_ORGANIZATION" && -n "$(git config buildkite.account)" ]]; then
+  BUILDKITE_ORGANIZATION="$(git config buildkite.account)"
+
+  echo "Warning: Using buildkite.account in your Git config is deprecated, please use buildkite.organization:"
+  echo
+  echo "  git config --local buildkite.organization $(printf "%q" "$BUILDKITE_ORGANIZATION")"
+  echo "  git config --unset buildkite.account"
+  echo
+fi
+
+BUILDKITE_PIPELINE="${BUILDKITE_PIPELINE:-$(git config buildkite.pipeline)}"
+
+if [[ -z "$BUILDKITE_PIPELINE" && -n "$BUILDKITE_PROJECT" ]]; then
+  BUILDKITE_PIPELINE="$BUILDKITE_PROJECT"
+
+  echo "Warning: \$BUILDKITE_PROJECT is deprecated, please use \$BUILDKITE_PIPELINE"
+  echo
+fi
+
+if [[ -z "$BUILDKITE_PIPELINE" && -n "$(git config buildkite.project)" ]]; then
+  BUILDKITE_PIPELINE="$(git config buildkite.project)"
+
+  echo "Warning: Using buildkite.project in your Git config is deprecated, please use buildkite.pipeline:"
+  echo
+  echo "  git config --local buildkite.pipeline $(printf "%q" "$BUILDKITE_PIPELINE")"
+  echo "  git config --unset buildkite.project"
+  echo
 fi
 
 function current_revision() {
@@ -82,7 +118,7 @@ function build() {
   # XXX: There seems no nice way to make curl give us a non-zero
   # status code and the response body on error, so we have to check
   # the content for errors later.
-  curl -# "https://api.buildkite.com/v2/organizations/${BUILDKITE_ACCOUNT}/pipelines/${BUILDKITE_PROJECT}/builds" \
+  curl -# "https://api.buildkite.com/v2/organizations/${BUILDKITE_ORGANIZATION}/pipelines/${BUILDKITE_PIPELINE}/builds" \
     -H "Authorization: Bearer $BUILDKITE_API_KEY" \
     -X POST \
     -F "branch=$1" \
@@ -119,15 +155,15 @@ if [ -z "$BUILDKITE_API_KEY" ]; then
   exit 1
 fi
 
-if [ -z "$BUILDKITE_ACCOUNT" -o -z "$BUILDKITE_PROJECT" ]; then
-  echo "You need to configure your Buildkite account and project name. They're in the URL when you visit your project page. For example:"
+if [ -z "$BUILDKITE_ORGANIZATION" -o -z "$BUILDKITE_PIPELINE" ]; then
+  echo "You need to configure your Buildkite organization and pipeline name. They're in the URL when you visit your pipeline page. For example:"
   echo
-  echo "    https://buildkite.com/mycompany/myproject"
+  echo "    https://buildkite.com/mycompany/mypipeline"
   echo
-  echo "corresponds an account named \"mycompany\" and project named \"myproject\". Then stick it in git:"
+  echo "corresponds an organization named \"mycompany\" and pipeline named \"mypipeline\". Then stick it in git:"
   echo
-  echo "    git config --local buildkite.account \"mycompany\""
-  echo "    git config --local buildkite.project \"myproject\""
+  echo "    git config --local buildkite.organization \"mycompany\""
+  echo "    git config --local buildkite.pipeline \"mypipeline\""
   echo
 
   exit 1
