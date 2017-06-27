@@ -19,7 +19,7 @@ Or just download the git-buildkite script in this repository somewhere into your
 Add a Buildkite [API Access Token](https://buildkite.com/user/api-access-tokens) with:
 
 ```
-$ git config global buildkite.apikey my-api-key
+$ git config --global buildkite.apikey my-api-key
 ```
 
   Or store it more securely in your macOS Keychain, GNOME Keychain, or other secret stores which [Keyring](https://pypi.python.org/pypi/keyring) supports:
