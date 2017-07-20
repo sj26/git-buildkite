@@ -2,6 +2,12 @@
 
 BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
 
+# Store your API key in your macOS keychain:
+#   security add-generic-password -s api.buildkite.com -a YOUR-USERNAME -w
+if [[ -z "$BUILDKITE_API_KEY" ]] && which security >/dev/null 2>&1; then
+  BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(security find-generic-password -s api.buildkite.com -w 2>/dev/null)}"
+fi
+
 # Store your API key in your keyring:
 #   pip install keyring
 #   keyring set api.buildkite.com "$USER"

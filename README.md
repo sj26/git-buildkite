@@ -22,7 +22,15 @@ Add a Buildkite [API Access Token](https://buildkite.com/user/api-access-tokens)
 $ git config --global buildkite.apikey my-api-key
 ```
 
-  Or store it more securely in your macOS Keychain, GNOME Keychain, or other secret stores which [Keyring](https://pypi.python.org/pypi/keyring) supports:
+Or store it more securely in your [macOS Keychain](https://developer.apple.com/legacy/library/documentation/Darwin/Reference/ManPages/man1/security.1.html):
+
+```
+$ security add-generic-password -s api.buildkite.com -a "$USER" -w
+password data for new item:
+retype password for new item:
+```
+
+Or in GNOME Keychain, or other secret stores which [Keyring](https://pypi.python.org/pypi/keyring) supports:
 
 ```
 $ pip install keyring
