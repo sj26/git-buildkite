@@ -2,7 +2,7 @@
 
 Start [Buildkite](https://buildkite.com) builds using [Git](https://git-scm.com) with a clickable link:
 
-![Running a build of MailCatcher](https://cloud.githubusercontent.com/assets/14028/3793323/c2ce4b52-1b93-11e4-9777-3e7b52ef688f.png)
+<img width="715" alt="git buildkite building buildkite on buildkite" src="https://user-images.githubusercontent.com/14028/28461425-e3fd347a-6e59-11e7-9672-755e0c4a54b5.png">
 
 Walks you through first time configuration.
 
