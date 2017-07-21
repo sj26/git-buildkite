@@ -70,6 +70,12 @@ Any [Git revision](https://git-scm.com/docs/gitrevisions) works as a commit:
 $ git buildkite HEAD "@{1 week ago}"
 ```
 
+You can automatically open the build in your browser, too:
+
+```
+$ git buildkite --browse
+```
+
 ## To Do
 
  * Better result parsing and error handling
