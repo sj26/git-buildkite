@@ -175,6 +175,17 @@ if [ -z "$BUILDKITE_ORGANIZATION" -o -z "$BUILDKITE_PIPELINE" ]; then
   exit 1
 fi
 
+# Parse flags before parsing arguments
+let i=1
+while [[ $i -le $# ]]; do
+  case "${!i}" in
+    "--browse")
+      browse=yes
+      shift $i
+  esac
+  let i=i+1
+done
+
 if [[ "$#" -eq 0 ]]; then
   if ! current_branch_exists; then
     echo "Woops, you don't seem to be on a branch." >&2
@@ -359,3 +370,13 @@ echo
 echo "    ${build_url}"
 echo
 
+# Open a browser if we can
+if [[ -n "$browse" ]]; then
+  if which open >/dev/null 2>&1; then
+    open "${build_url}"
+  elif which xdg-open >/dev/null 2>&1; then
+    xdg-open "${build_url}"
+  else
+    echo "Sorry but I don't know how to open your browser! Copy and paste the link above as you like."
+  fi
+fi
