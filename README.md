@@ -76,6 +76,19 @@ You can automatically open the build in your browser, too:
 $ git buildkite --browse
 ```
 
+Prevent specific branches from being built:
+
+```
+$ git config --local buildkite.protectedBranches master,develop
+$ git buildkite master # error
+```
+
+Force a protected branch to be built:
+
+```
+$ git buildkite --force master
+```
+
 ## To Do
 
  * Better result parsing and error handling
