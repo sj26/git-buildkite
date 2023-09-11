@@ -1,5 +1,7 @@
 #!/bin/bash
 
+VERSION="v0.6.0"
+
 BUILDKITE_ORGANIZATION="${BUILDKITE_ORGANIZATION:-$(git config buildkite.organization)}"
 
 if [[ -z "$BUILDKITE_ORGANIZATION" && -n "$BUILDKITE_ACCOUNT" ]]; then
@@ -139,7 +141,8 @@ function build() {
   # status code and the response body on error, so we have to check
   # the content for errors later.
   curl -# "https://api.buildkite.com/v2/organizations/${BUILDKITE_ORGANIZATION}/pipelines/${BUILDKITE_PIPELINE}/builds" \
-    -H "Authorization: Bearer $BUILDKITE_API_KEY" \
+    -A "git-buildkite/${VERSION}" \
+    -H "Authorization: Bearer ${BUILDKITE_API_KEY}" \
     -X POST \
     -F "branch=$1" \
     -F "commit=$2" \
