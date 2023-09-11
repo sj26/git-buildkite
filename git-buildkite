@@ -1,20 +1,5 @@
 #!/bin/bash
 
-BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
-
-# Store your API key in your macOS keychain:
-#   security add-generic-password -s api.buildkite.com -a YOUR-USERNAME -w
-if [[ -z "$BUILDKITE_API_KEY" ]] && which security >/dev/null 2>&1; then
-  BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(security find-generic-password -s api.buildkite.com -w 2>/dev/null)}"
-fi
-
-# Store your API key in your keyring:
-#   pip install keyring
-#   keyring set api.buildkite.com "$USER"
-if [[ -z "$BUILDKITE_API_KEY" ]] && which keyring > /dev/null 2>&1; then
-  BUILDKITE_API_KEY="$(keyring get api.buildkite.com "$USER")"
-fi
-
 BUILDKITE_ORGANIZATION="${BUILDKITE_ORGANIZATION:-$(git config buildkite.organization)}"
 
 if [[ -z "$BUILDKITE_ORGANIZATION" && -n "$BUILDKITE_ACCOUNT" ]]; then
@@ -32,6 +17,35 @@ if [[ -z "$BUILDKITE_ORGANIZATION" && -n "$(git config buildkite.account)" ]]; t
   echo "  git config --local buildkite.organization $(printf "%q" "$BUILDKITE_ORGANIZATION")"
   echo "  git config --unset buildkite.account"
   echo
+fi
+
+BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(git config buildkite.apikey)}"
+
+# Store your API key in your macOS keychain:
+if [[ -z "$BUILDKITE_API_KEY" ]] && which security >/dev/null 2>&1; then
+  # Try a per-org token first:
+  #   security add-generic-password -s api.buildkite.com/v2/organizations/YOUR-ORGANIZATION -a YOUR-USERNAME -w
+  BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(security find-generic-password -s "api.buildkite.com/v2/organizations/${BUILDKITE_ORGANIZATION}" -w 2>/dev/null)}"
+
+  # Fall back to a global token:
+  #   security add-generic-password -s api.buildkite.com -a YOUR-USERNAME -w
+  if [[ -z "$BUILDKITE_API_KEY" ]]; then
+    BUILDKITE_API_KEY="${BUILDKITE_API_KEY:-$(security find-generic-password -s api.buildkite.com -w 2>/dev/null)}"
+  fi
+fi
+
+# Store your API key in your keyring:
+#   pip install keyring
+if [[ -z "$BUILDKITE_API_KEY" ]] && which keyring > /dev/null 2>&1; then
+  # Try a per-org token first:
+  #   keyring set "api.buildkite.com/v2/organizations/${BUILDKITE_ORGANIZATION}" "$USER"
+  if [[ -z "$BUILDKITE_API_KEY" ]] && which keyring > /dev/null 2>&1; then
+    BUILDKITE_API_KEY="$(keyring get "api.buildkite.com/v2/organizations/${BUILDKITE_ORGANIZATION}" "$USER")"
+  fi
+
+  # Fall back to a global token:
+  #   keyring set api.buildkite.com "$USER"
+  BUILDKITE_API_KEY="$(keyring get api.buildkite.com "$USER")"
 fi
 
 BUILDKITE_PIPELINE="${BUILDKITE_PIPELINE:-$(git config buildkite.pipeline)}"
